@@ -1,11 +1,8 @@
 import cv2
 import numpy as np
-import Camera as C
+from CameraT import Camera
 
-
-
-pipeline = C.create_pipeline(fps=30)
-device, videoQueue = C.start_camera(pipeline)
+C=Camera()
 
 # Function that does nothing, just for trackbar
 def empty(a):
@@ -24,7 +21,7 @@ cv2.createTrackbar("VAL Min", "HSV", 0, 255, empty)
 cv2.createTrackbar("VAL Max", "HSV", 255, 255, empty)
 
 while True:
-    frame = C.show_video(videoQueue)
+    frame = C.show_video()
     # Convert the image to HSV
     imgHsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
