@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 
 class Camera:
-    def init(self, fps=30):
+    def __init__(self, fps=40):
         # Initialize pipeline when the class is instantiated
         self.fps = fps
         self.pipeline = self.create_pipeline()
@@ -54,7 +54,7 @@ class Camera:
         cv2.destroyAllWindows()
 
 if __name__ == "__main__":
-    camera = Camera(fps=30)
+    camera = Camera(fps=35)
 
     while True:
         frame = camera.show_video()
@@ -64,3 +64,4 @@ if __name__ == "__main__":
         print(f"Average brightness level: {brightness}")
 
 cv2.destroyAllWindows()
+
