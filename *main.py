@@ -3,7 +3,7 @@ import test as motorM
 from CameraT import Camera
 from KeyboardM import Keyboard1
 import cv2
-from intterupt import EventDetector
+from interupt import EventDetector
 import BoomGateDetection as BGD
 
 # Initialize the motor and keyboard
