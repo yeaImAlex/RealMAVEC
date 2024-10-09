@@ -59,6 +59,7 @@ class Motor():
         self.right2_motor_pwm.ChangeDutyCycle(0)
 
     def set_steering(self, angle):
+        #angle = max(0, min(180, angle))
         servo_angle = (angle+1)*90
         duty_cycle = 2.5 + (servo_angle/180) * 10
         self.steeringPin_pwm.ChangeDutyCycle(duty_cycle)
@@ -89,6 +90,6 @@ def main():
         motor.move(40,155)
         sleep(2)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     motor = Motor(12,16,27,17,21,13,26,19,18)
     main()
