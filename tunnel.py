@@ -73,7 +73,7 @@ motor = Motor(12, 16, 27, 17, 21, 13, 26, 19, 18)
 keyboard = Keyboard1()
 camera = Camera()
 
-if name == 'main':
+if __name__ == '__main__':
     try:
         while True:
             frame = camera.show_video()  # Capture the video frame
@@ -84,7 +84,7 @@ if name == 'main':
             brightness = camera.get_brightness_level(frame)
             print(f"Average brightness level: {brightness}")
 
-            if brightness < 20:
+            if brightness < 35:
                 left_distance = get_distance(leftTrigPin, leftEchoPin)
 
                 # Clamp distance values
@@ -100,17 +100,13 @@ if name == 'main':
                 distance_difference = target_distance - left_distance
 
                 print(
-                    f"Left Distance: {left_distance}, Target Distance: {target_distance}, Distance Difference: {distance_difference}")
+                    f"Distance Difference: {distance_difference}")
 
-                if keyboard.getKey('e'):
-                    motorR = 1 if motorR == 0 else 0
 
-                if motorR == 1:
-                    pid_output = pid_control(distance_difference)
-                    if not (15 <= left_distance <= 90):
-                        adjust_motor_speed(motor, pid_output)
-                else:
-                    motor.stop()
+
+                pid_output = pid_control(distance_difference)
+                if not (15 <= left_distance <= 90):
+                    adjust_motor_speed(motor, pid_output)
 
                 sleep(dt)
             else:
@@ -118,5 +114,6 @@ if name == 'main':
 
 
     except KeyboardInterrupt:
-        motor.cleanup()
-        GPIO.cleanup()
+       motor.cleanup()
+    
+
