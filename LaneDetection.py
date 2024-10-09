@@ -1,8 +1,8 @@
 import cv2
 import numpy as np
 import utils
-import Camera as C
-from keyboardM import Keyboard1
+from CameraT import Camera
+from KeyboardM import Keyboard1
 
 kM = Keyboard1()
  
@@ -26,7 +26,7 @@ def getLaneCurve(img,display=2):
     middlePoint,imgHist = utils.getHistogram(imgWarp,display=True,minPer=0.5,region=4)
     curveAveragePoint, imgHist = utils.getHistogram(imgWarp, display=True, minPer=0.9)
     curveRaw = curveAveragePoint - middlePoint
- 
+
     #### SETP 4
     curveList.append(curveRaw)
     if len(curveList)>avgVal:
@@ -68,12 +68,11 @@ def getLaneCurve(img,display=2):
  
  
 if __name__ == '__main__':
-    pipeline = C.create_pipeline(fps=30)
-    device, videoQueue = C.start_camera(pipeline)
-    intialTrackBarVals = [102, 80, 20, 214 ]
+    C = Camera()
+    intialTrackBarVals = [71, 147, 0, 240 ]
     utils.initializeTrackbars(intialTrackBarVals)
     while True:
-        frame = C.show_video(videoQueue)
+        frame = C.show_video()
         if frame is None:
             break
  
@@ -81,10 +80,8 @@ if __name__ == '__main__':
         print(curve)
         #cv2.imshow('Vid',img)
         #cv2.waitKey(1)
-        if frame is None:
-            break
-        elif kM.getKey('q'):
+        if kM.getKey('q'):
             break
     
 cv2.destroyAllWindows()
-    
+
