@@ -57,3 +57,7 @@ while True:
 
 # Release resources and close all windows
 cv2.destroyAllWindows()
+
+
+
+
