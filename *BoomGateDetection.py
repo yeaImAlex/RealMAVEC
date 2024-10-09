@@ -1,51 +1,81 @@
-import laneDetection as ld
-import test as motorM
-from CameraT import Camera
-from KeyboardM import Keyboard1
 import cv2
-from intterupt import EventDetector
-import BoomGateDetection as BGD
+import numpy as np
+from Camera import Camera  
 
-# Initialize the motor and keyboard
-motor = motorM.Motor(12, 16, 27, 17, 21, 13, 26, 19, 18)  # Motor GPIO pin setup
-kM = Keyboard1()  # Initialize the keyboard input handler
-C = Camera()  # Initialize the camera
-ED = EventDetector()
+# Function to detect the red boom gate
+def detect_red_gate(frame):
+    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
 
-if __name__ == '__main__':
-    print('Camera start')
-    obj_d =0
-    try:
-        intialTrackBarVals = [84, 182, 0, 303]
-        ld.utils.initializeTrackbars(intialTrackBarVals)
+    # Define the range for detecting red color in HSV
+    lower_red1 = np.array([0, 120, 70])
+    upper_red1 = np.array([10, 255, 255])
+    lower_red2 = np.array([170, 120, 70])
+    upper_red2 = np.array([180, 255, 255])
 
-        while True:
-            frame = C.show_video()  # Get the camera frame
-            if frame is None:
-                print('Frame not shown')
-                break
+    # Create masks for red color detection
+    mask1 = cv2.inRange(hsv, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv, lower_red2, upper_red2)
+    mask = mask1 | mask2
 
-            # Lane detection logic
-            curve = ld.getLaneCurve(frame, display=1)
-            print(curve)
+    # Define the Region of Interest (ROI)
+    height, width, _ = frame.shape
+    roi = mask[height // 3: height, width // 3: 2 * width // 3]
+
+    # Find contours within the ROI
+    contours, _ = cv2.findContours(roi, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+
+    for contour in contours:
+        area = cv2.contourArea(contour)
+
+        # Only process contours with sufficient area
+        if area > 100:
+            # Approximate the contour shape
+            epsilon = 0.05 * cv2.arcLength(contour, True)
+            approx = cv2.approxPolyDP(contour, epsilon, True)
+
+            # Check if the contour has at least 4 sides (a rectangle-like shape)
+            if len(approx) >= 4:
+                x, y, w, h = cv2.boundingRect(contour)
+                aspect_ratio = w / float(h)
+                
+                # Calculate the area of the bounding rectangle
+                rect_area = w * h
+                
+                # Calculate the contour area ratio
+                contour_area_ratio = area / rect_area if rect_area > 0 else 0
+                
+                # Define thresholds for aspect ratio and contour area ratio
+                if 3.0 < aspect_ratio < 8.0 and contour_area_ratio > 0.7:
+                    cv2.rectangle(frame, (x + width // 3, y + height // 3), 
+                                  (x + width // 3 + w, y + height // 3 + h), (0, 255, 0), 2)
+                    cv2.putText(frame, "Boom Gate Detected", (x + width // 3, y + height // 3 - 10), 
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+    # Show the mask (for debugging purposes)
+    cv2.imshow('mask', roi)
+    return frame, len(contours) > 0
 
 
-            if -0.02 <= curve <= 0.02:
-                motor.move(15, 0)
-            else:
-                delay = 1
-                curve *= delay
-                motor.move(15, curve)
-            
-            if BGD.detect_red_gate()
-                motor.stop()
+if __name__ == "__main__":
+    # Initialize the Oak-D camera using the Camera class
+    C = Camera()  # Use your Camera class from camera_module
 
-            ED.add_event_detect(obj_d, 1, callback= motor.stop() , bouncetime=5)
+    while True:
+        # Get the video feed from the Oak-D camera
+        frame = C.show_video()
+        if frame is None:
+            break
 
-            if kM.getKey('q'):
-                break
+        # Perform boom gate detection on the frame
+        processed_frame, red_detected = detect_red_gate(frame)
 
+        # Display the result
+        cv2.imshow('Boom Gate Detection', processed_frame)
 
-    finally:
-        motor.cleanup()
-        cv2.destroyAllWindows()
+        # Exit the loop when 'q' is pressed
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # Stop the Oak-D camera and clean up
+    C.stop_camera()
+    cv2.destroyAllWindows()
