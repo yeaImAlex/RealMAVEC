@@ -1,18 +1,18 @@
-import keyboardM
+import pygame
 
 class Keyboard1:
     def __init__(self):
-        keyboardM.init()
-        self.win = keyboardM.display.set_mode((100,100))
+        pygame.init()
+        self.win = pygame.display.set_mode((100,100))
 
     def getKey(self, keyName):
         ans = False
-        for eve in keyboardM.event.get(): pass
-        keyInput = keyboardM.key.get_pressed()
-        myKey = getattr(keyboardM, 'K_{}'.format(keyName))
+        for eve in pygame.event.get(): pass
+        keyInput = pygame.key.get_pressed()
+        myKey = getattr(pygame, 'K_{}'.format(keyName))
         if keyInput[myKey]:
             ans = True
-        keyboardM.display.update()
+        pygame.display.update()
 
         return ans
 
@@ -35,4 +35,3 @@ if __name__ == '__main__':
 
         while True:
            keyboard.main()
-    
