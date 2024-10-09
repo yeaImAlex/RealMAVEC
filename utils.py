@@ -4,7 +4,7 @@ import numpy as np
 def thresholding(img):
     imgHsv = cv2.cvtColor(img,cv2.COLOR_BGR2HSV)
     lowerWhite = np.array([0,0,0])
-    upperWhite = np.array([179,255,128])
+    upperWhite = np.array([179,255,110])
     maskWhite = cv2.inRange(imgHsv,lowerWhite,upperWhite)
     return maskWhite
  
@@ -20,8 +20,8 @@ def warpImg(img,points,w,h,inv = False):
  
 def nothing(a):
     pass
-  
-def initializeTrackbars(intialTracbarVals,wT=480, hT=240):
+ 
+def initializeTrackbars(intialTracbarVals,wT=480, hT=330):
     cv2.namedWindow("Trackbars")
     cv2.resizeWindow("Trackbars", 360, 240)
     cv2.createTrackbar("Width Top", "Trackbars", intialTracbarVals[0],wT//2, nothing)
@@ -43,7 +43,7 @@ def drawPoints(img,points):
         cv2.circle(img,(int(points[x][0]),int(points[x][1])),15,(0,0,255),cv2.FILLED)
     return img
  
-def getHistogram(img,minPer=0.1,display= False,region=1):
+def getHistogram(img,minPer=0.5,display= False,region=1):
  
     if region ==1:
         histValues = np.sum(img, axis=0)
