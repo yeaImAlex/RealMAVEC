@@ -36,13 +36,16 @@ if __name__ == '__main__':
                 delay = 1
                 curve *= delay
                 motor.move(15, curve)
-
-            ED.add_event_detect(obj_d, 1, callback=BGD.detect_red_gate() , bouncetime=5)
             
+            if BGD.detect_red_gate()
+                motor.stop()
+
+            ED.add_event_detect(obj_d, 1, callback= motor.stop() , bouncetime=5)
+
             if kM.getKey('q'):
                 break
-            
-        
+
+
     finally:
         motor.cleanup()
         cv2.destroyAllWindows()
