@@ -1,0 +1,293 @@
+import hardccoding as ld
+import Motor as Motor
+from Camera import Camera
+from Keyboard import Keyboard1
+import BoomGateDetection as BGD
+import cv2
+import SignDetection as CD
+from time import sleep, time
+from tunnel import Tunnel
+import RPi.GPIO as GPIO
+import threading
+from traffictesting import TrafficLightDetection
+
+motor = Motor.Motor(12, 16, 27, 17, 21, 13, 26, 19, 18)
+tunnel = Tunnel(motor)
+kM = Keyboard1()
+C = Camera()
+tL = TrafficLightDetection()
+
+motor_lock = threading.Lock()
+motor_flag = False
+
+yellow_record = 0
+
+# Flags for different conditions
+red_gate_triggered = False
+tunnel_triggered = False
+lane_change_triggered = False
+traffic_light_triggered = False
+roundabout1_triggered = False
+roundabout2_triggered = False
+parking_triggered = False
+hill_triggered = False
+
+last_curve_change_time = time()
+prev_curve = None
+curve_change_threshold = 0.02
+
+
+def handle_red_gate():
+    global motor_flag, red_gate_triggered
+    with motor_lock:
+        if not motor_flag:
+            motor_flag = True
+            red_gate_triggered = True
+            motor.stop()
+            sleep(1)
+            print('Red gate detected: Motor stopped')
+            motor_flag = False
+
+
+def check_red_gate(frame):
+    _, red_detected = BGD.detect_red_gate(frame)
+    if red_detected:
+        handle_red_gate()
+        return True
+    else:
+        global red_gate_triggered
+        red_gate_triggered = False
+        return False
+
+
+def handle_tunnel(brightness):
+    global motor_flag, tunnel_triggered
+    with motor_lock:
+        if not motor_flag:
+            motor_flag = True
+            tunnel_triggered = True
+            tunnel.run()
+            motor_flag = False
+
+
+def check_tunnel(frame):
+    brightness = C.get_brightness_level(frame)
+    if brightness > 0 and brightness < 80:
+        if tunnel.get_distance() <= 30:
+            handle_tunnel(brightness)
+            return True
+        else:
+            motor.move(20, 0)
+            sleep(1.5)
+            print('motor move forward')
+    elif tunnel.get_distance() <= 15:
+        if brightness > 100:
+            motor.move(20, 0.35)
+            print('end')
+            sleep(0.5)
+    else:
+        global tunnel_triggered
+        tunnel_triggered = False
+    return tunnel_triggered
+
+
+def handle_traffic_light(frame):
+    global motor_flag, traffic_light_triggered
+    with motor_lock:
+        if not motor_flag:
+            motor_flag = True
+            traffic_light_triggered = True
+            print('Traffic light condition triggered')
+            motor.stop()
+            sleep(1.5)
+            motor_flag = False
+
+
+def check_traffic_light(frame):
+    light_status, area = tL.detect_traffic_light(frame)
+    if light_status == "Red Light":
+        handle_traffic_light(frame)
+        return True
+    else:
+        global traffic_light_triggered
+        traffic_light_triggered = False
+        return False
+
+
+def lane_changing(frame):
+    global motor_flag, lane_change_triggered, yellow_record
+    with motor_lock:
+        if not motor_flag:
+            motor_flag = True
+            lane_change_triggered = True
+            motor.stop()
+            yellow_record = 1
+            motor_flag = False
+            lane_change_triggered = False
+
+
+def check_lane_change(frame):
+    global yellow_record
+    result_orange, _ = CD.detect_orange(frame)
+    if result_orange == 'Orange sign detected' and not lane_change_triggered:
+        if yellow_record == 0:
+            print("Orange sign detected, triggering lane change logic")
+            lane_changing(frame)
+            return True
+    return False
+
+
+def handle_parking():
+    global motor_flag, parking_triggered
+    with motor_lock:
+        if not motor_flag:
+            motor_flag = True
+            parking_triggered = True
+            motor.stop()
+            sleep(2)
+            motor.move(20, 0)
+            sleep(4)
+            motor.move(20, 0.2)
+            sleep(2.5)
+            motor_flag = False
+            parking_triggered = False
+
+
+def check_parking(frame):
+    result_blue, _ = CD.detect_blue(frame)
+    if result_blue == 'Blue detected with valid aspect ratio' and not parking_triggered:
+        print("start parking")
+        handle_parking()
+        return True
+    return False
+
+
+def handle_roundabout1(frame):
+    global motor_flag, roundabout1_triggered
+    with motor_lock:
+        if not motor_flag:
+            motor_flag = True
+            roundabout1_triggered = True
+            print('Roundabout condition triggered')
+            motor.stop()
+            sleep(2)
+            motor.move(20, 0)
+            sleep(2)
+            motor.move(20, -0.25)
+            sleep(1.5)
+            start_time = time()
+            duration = 8
+
+            while time() - start_time < duration:
+                curve = ld.getLaneCurve(frame, display=0)
+                motor.move(18, curve)
+                sleep(0.05)
+            motor.stop(2)
+
+            motor_flag = False
+            roundabout1_triggered = False
+
+
+def check_roundabout1(frame):
+    global yellow_record
+    result_orange, _ = CD.detect_orange(frame)
+    if result_orange == 'Orange sign detected' and not roundabout1_triggered:
+        if yellow_record == 1:
+            print("Orange sign detected, triggering roundabout logic")
+            handle_roundabout1(frame)
+            yellow_record = 2
+            return True
+    return False
+
+
+def handle_lane_detection(frame):
+    global motor_flag, last_curve_change_time, prev_curve
+    with motor_lock:
+        if not motor_flag:
+            motor_flag = True
+            curve = ld.getPIDAdjustedCurve(frame, desired_curve=0, display=2)
+            motor.move(18, curve)
+            print(f"Lane detected: Motor moved with curve {curve}")
+
+            if prev_curve is None or abs(curve - prev_curve) > curve_change_threshold:
+                last_curve_change_time = time()
+                prev_curve = curve
+            motor_flag = False
+
+
+def check_lane_detection(frame):
+    handle_lane_detection(frame)
+    return True
+
+
+def handle_hill():
+    global motor_flag
+
+    def hill_logic():
+        global motor_flag, hill_triggered
+        try:
+            with motor_lock:
+                if not motor_flag and not hill_triggered:
+                    motor_flag = True
+                    hill_triggered = True
+                    print('Hill detected')
+                    motor.move(60, 0)
+                    sleep(1)
+                    print(f"Hill moving")
+                    hill_triggered = False
+                    motor_flag = False
+        except Exception as e:
+            print(f"Error in hill_logic: {e}")
+            motor_flag = False
+            hill_triggered = False
+
+    threading.Thread(target=hill_logic, daemon=True).start()
+
+
+def check_hill(frame):
+    global last_curve_change_time, prev_curve, hill_triggered
+    current_time = time()
+    if prev_curve is not None:
+        time_since_last_change = current_time - last_curve_change_time
+        if time_since_last_change > 8 and not hill_triggered:
+            handle_hill()
+            return True
+    return False
+
+
+def frame_processing(frame):
+    check_lane_detection(frame)
+    tunnel_triggered_flag = check_tunnel(frame)
+    if tunnel_triggered_flag:
+        red_gate_triggered_flag = check_red_gate(frame)
+        if red_gate_triggered_flag:
+            hill_triggered_flag = check_hill(frame)
+            if hill_triggered_flag:
+                traffic_light_triggered_flag = check_traffic_light(frame)
+                if traffic_light_triggered_flag:
+                    check_parking(frame)
+
+
+def main_loop():
+    while True:
+        frame = C.show_video()  # Capture frame from camera
+        frame_processing(frame)  # Process the captured frame
+
+        # Exit condition (checking for 'q' key press)
+        if kM.getKey('q'):
+            print("Exit signal received")
+            break
+
+
+if _name_ == '_main_':
+    print('Camera start')
+
+    try:
+        initialTrackBarVals = [71, 216, 0, 330]
+        ld.utils.initializeTrackbars(initialTrackBarVals)
+        main_loop()
+
+    finally:
+        motor.cleanup()
+        cv2.destroyAllWindows()
+        GPIO.cleanup()
