@@ -255,17 +255,29 @@ def check_hill(frame):
     return False
 
 
+# Initialize all flags globally
+lane_change_triggered_flag = False
+tunnel_triggered_flag = False
+red_gate_triggered_flag = False
+hill_triggered_flag = False
+traffic_light_triggered_flag = False
+
 def frame_processing(frame):
+    global lane_change_triggered_flag, tunnel_triggered_flag, red_gate_triggered_flag
+    global hill_triggered_flag, traffic_light_triggered_flag
+
     check_lane_detection(frame)
-    tunnel_triggered_flag = check_tunnel(frame)
-    if tunnel_triggered_flag:
-        red_gate_triggered_flag = check_red_gate(frame)
-        if red_gate_triggered_flag:
-            hill_triggered_flag = check_hill(frame)
-            if hill_triggered_flag:
-                traffic_light_triggered_flag = check_traffic_light(frame)
-                if traffic_light_triggered_flag:
-                    check_parking(frame)
+    if not lane_change_triggered_flag:
+        lane_change_triggered_flag = check_lane_change(frame) or lane_change_triggered_flag
+    if lane_change_triggered_flag and not tunnel_triggered_flag:
+        tunnel_triggered_flag = check_tunnel(frame) or tunnel_triggered_flag
+    if tunnel_triggered_flag and not red_gate_triggered_flag:
+        red_gate_triggered_flag = check_red_gate(frame) or red_gate_triggered_flag
+    if red_gate_triggered_flag and not hill_triggered_flag:
+        hill_triggered_flag = check_hill(frame) or hill_triggered_flag
+    if hill_triggered_flag and not traffic_light_triggered_flag:
+        traffic_light_triggered_flag = check_traffic_light(frame) or traffic_light_triggered_flag
+    check_parking(frame)
 
 
 def main_loop():
